@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Periodic Quest — Element Adventure</title>
+<meta name="description" content="A kid-friendly periodic table adventure with five mini-games. Learn chemistry through play!">
+<meta name="theme-color" content="#6C4DF6">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<!-- ============ TOP BAR ============ -->
+<header class="topbar" id="topbar">
+  <button class="avatar-btn" id="btnAvatar" aria-label="Change your avatar">
+    <span id="avatarEmoji">🦊</span>
+  </button>
+  <div class="topbar-stats" role="status" aria-label="Your rewards">
+    <span class="stat-chip stat-stars" id="chipStars" title="Stars">⭐ <b id="statStars">0</b></span>
+    <span class="stat-chip stat-coins" id="chipCoins" title="Coins">🪙 <b id="statCoins">0</b></span>
+    <span class="stat-chip stat-level" id="chipLevel" title="Level">🧪 Lv <b id="statLevel">1</b></span>
+  </div>
+  <button class="icon-btn" id="btnSound" aria-label="Toggle sound" aria-pressed="true">🔊</button>
+  <button class="icon-btn" id="btnSettings" aria-label="Settings and grown-up zone">⚙️</button>
+</header>
+
+<main id="app">
+
+<!-- ============ HOME ============ -->
+<section class="screen active" id="screen-home" aria-label="Home">
+  <div class="table-bg" aria-hidden="true" id="tableBg"></div>
+  <div class="home-inner">
+    <h1 class="app-title">Periodic <span>Quest</span></h1>
+    <p class="app-tag" id="greeting">Ready to explore, scientist?</p>
+
+    <div class="mode-toggle" role="radiogroup" aria-label="Learning mode">
+      <button class="mode-btn" data-mode="beginner" role="radio" aria-checked="false">🐣 Beginner <small>ages 6–8</small></button>
+      <button class="mode-btn" data-mode="explorer" role="radio" aria-checked="false">🚀 Explorer <small>ages 9–12</small></button>
+    </div>
+
+    <div class="daily-card brick" id="dailyCard" role="group" aria-label="Daily challenge">
+      <div class="daily-icon" aria-hidden="true">📅</div>
+      <div class="daily-text">
+        <b>Daily Challenge</b>
+        <span id="dailyText">…</span>
+        <div class="daily-bar"><div class="daily-fill" id="dailyFill"></div></div>
+      </div>
+      <div class="daily-reward" id="dailyReward">+25 🪙</div>
+    </div>
+
+    <div class="progress-card brick">
+      <div class="pc-row"><span>🃏 Discovery Collection</span><b id="pcCollection">0 / 89</b></div>
+      <div class="pc-row"><span>📈 Level progress</span><b id="pcXp">0 XP</b></div>
+      <div class="xp-bar"><div class="xp-fill" id="xpFill"></div></div>
+      <div class="pc-unlock" id="pcUnlock"></div>
+    </div>
+
+    <div class="game-grid">
+      <button class="game-card brick gc-mix" data-go="mixlab">
+        <span class="gc-emoji" aria-hidden="true">🧪</span><span class="gc-name">Mix Lab</span>
+        <span class="gc-sub">Combine elements, discover compounds!</span>
+      </button>
+      <button class="game-card brick gc-guess" data-go="guess">
+        <span class="gc-emoji" aria-hidden="true">🕵️</span><span class="gc-name">Guess the Element</span>
+        <span class="gc-sub">Follow the clues!</span>
+      </button>
+      <button class="game-card brick gc-build" data-go="build">
+        <span class="gc-emoji" aria-hidden="true">🧩</span><span class="gc-name">Build the Table</span>
+        <span class="gc-sub">Put every element in its place!</span>
+      </button>
+      <button class="game-card brick gc-detective" data-go="detective">
+        <span class="gc-emoji" aria-hidden="true">⚛️</span><span class="gc-name">Property Detective</span>
+        <span class="gc-sub">Who am I?</span>
+      </button>
+      <button class="game-card brick gc-atomic" data-go="atomic">
+        <span class="gc-emoji" aria-hidden="true">🔢</span><span class="gc-name">Atomic Challenge</span>
+        <span class="gc-sub">Numbers, symbols &amp; speed!</span>
+      </button>
+      <button class="game-card brick gc-multi" data-go="multi">
+        <span class="gc-emoji" aria-hidden="true">🎮</span><span class="gc-name">Play Together</span>
+        <span class="gc-sub">Pass &amp; play with a friend!</span>
+      </button>
+    </div>
+
+    <div class="home-links">
+      <button class="pill-btn brick" data-go="encyclopedia">📖 Element Encyclopedia</button>
+      <button class="pill-btn brick" data-go="collection">🃏 My Collection</button>
+      <button class="pill-btn brick" data-go="badges">🏆 Badges</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MIX LAB ============ -->
+<section class="screen" id="screen-mixlab" aria-label="Mix Lab">
+  <div class="screen-head">
+    <button class="back-btn brick" data-go="home" aria-label="Back to home">←</button>
+    <h2>🧪 Mix Lab</h2>
+    <button class="pill-btn brick small" id="mixShelfToggle" aria-pressed="false">Full table</button>
+  </div>
+  <div class="beaker-zone" aria-live="polite">
+    <div class="beaker-slot" id="slotA" aria-label="First element slot">?</div>
+    <div class="beaker-plus" aria-hidden="true">＋</div>
+    <div class="beaker-slot" id="slotB" aria-label="Second element slot">?</div>
+    <button class="mix-btn brick" id="btnMix" disabled>MIX! ⚗️</button>
+  </div>
+  <p class="hint-text" id="mixHint">Tap two elements, then hit MIX!</p>
+  <div class="ptable-wrap"><div class="ptable" id="mixTable" role="grid" aria-label="Periodic table — pick two elements"></div></div>
+</section>
+
+<!-- ============ GUESS THE ELEMENT ============ -->
+<section class="screen" id="screen-guess" aria-label="Guess the Element">
+  <div class="screen-head">
+    <button class="back-btn brick" data-go="home" aria-label="Back to home">←</button>
+    <h2>🕵️ Guess the Element</h2>
+    <div class="diff-toggle" id="guessDiff" role="radiogroup" aria-label="Difficulty">
+      <button data-d="easy" role="radio">Easy</button><button data-d="medium" role="radio">Medium</button><button data-d="hard" role="radio">Hard</button>
+    </div>
+  </div>
+  <div class="clue-box brick" aria-live="polite">
+    <div class="clue-count" id="guessClueCount">Clue 1</div>
+    <p class="clue-text" id="guessClue">…</p>
+  </div>
+  <p class="hint-text" id="guessStatus">Tap the element you think it is!</p>
+  <div class="ptable-wrap"><div class="ptable" id="guessTable" role="grid" aria-label="Periodic table — tap your guess"></div></div>
+</section>
+
+<!-- ============ BUILD THE TABLE ============ -->
+<section class="screen" id="screen-build" aria-label="Build the Table">
+  <div class="screen-head">
+    <button class="back-btn brick" data-go="home" aria-label="Back to home">←</button>
+    <h2>🧩 Build the Table</h2>
+    <div class="diff-toggle" id="buildDiff" role="radiogroup" aria-label="Difficulty">
+      <button data-d="10" role="radio">First 10</button><button data-d="20" role="radio">First 20</button><button data-d="118" role="radio">All</button><button data-d="timed" role="radio">⏱ Timed</button>
+    </div>
+  </div>
+  <div class="build-bar">
+    <div class="build-card brick" id="buildCard" aria-live="polite">
+      <span class="bc-sym" id="buildSym">C</span>
+      <span class="bc-name" id="buildName">Carbon</span>
+      <span class="bc-num" id="buildNum">#6</span>
+    </div>
+    <div class="build-meta">
+      <span id="buildScore">0 placed</span>
+      <span id="buildTimer" hidden>90s</span>
+      <button class="pill-btn brick small" id="buildHint">💡 Hint</button>
+    </div>
+  </div>
+  <p class="hint-text" id="buildStatus">Where does it belong? Tap the spot!</p>
+  <div class="ptable-wrap"><div class="ptable" id="buildTable" role="grid" aria-label="Empty periodic table — tap the correct spot"></div></div>
+</section>
+
+<!-- ============ PROPERTY DETECTIVE ============ -->
+<section class="screen" id="screen-detective" aria-label="Property Detective">
+  <div class="screen-head">
+    <button class="back-btn brick" data-go="home" aria-label="Back to home">←</button>
+    <h2>⚛️ Property Detective</h2>
+    <div class="diff-toggle" id="detDiff" role="radiogroup" aria-label="Difficulty">
+      <button data-d="easy" role="radio">Easy</button><button data-d="medium" role="radio">Medium</button><button data-d="hard" role="radio">Hard</button>
+    </div>
+  </div>
+  <div class="det-zone">
+    <div class="det-badge" aria-hidden="true">🕵️‍♀️</div>
+    <div class="clue-box brick det-clues" id="detClues" aria-live="polite"></div>
+    <button class="pill-btn brick small" id="detMore">Give me another clue 🔍</button>
+    <h3 class="det-q">Who am I?</h3>
+    <div class="choice-grid" id="detChoices"></div>
+    <div class="det-score" id="detScore">Streak: 0 🔥</div>
+  </div>
+</section>
+
+<!-- ============ ATOMIC CHALLENGE ============ -->
+<section class="screen" id="screen-atomic" aria-label="Atomic Number Challenge">
+  <div class="screen-head">
+    <button class="back-btn brick" data-go="home" aria-label="Back to home">←</button>
+    <h2>🔢 Atomic Challenge</h2><span></span>
+  </div>
+  <div class="atomic-modes" id="atomicModes">
+    <button class="game-card brick gc-mix" data-am="A"><span class="gc-emoji">🔢</span><span class="gc-name">Number → Element</span><span class="gc-sub">See a number, find the element</span></button>
+    <button class="game-card brick gc-guess" data-am="B"><span class="gc-emoji">🧬</span><span class="gc-name">Element → Number</span><span class="gc-sub">See an element, find its number</span></button>
+    <button class="game-card brick gc-build" data-am="C"><span class="gc-emoji">🔤</span><span class="gc-name">Symbol Match</span><span class="gc-sub">Match symbols to names</span></button>
+    <button class="game-card brick gc-detective" data-am="D"><span class="gc-emoji">🃏</span><span class="gc-name">Memory Match</span><span class="gc-sub">Flip cards, find pairs</span></button>
+    <button class="game-card brick gc-atomic" data-am="E"><span class="gc-emoji">⏱️</span><span class="gc-name">Speed Round</span><span class="gc-sub">60 seconds. Go go go!</span></button>
+  </div>
+  <div class="atomic-play" id="atomicPlay" hidden>
+    <div class="atomic-hud">
+      <button class="pill-btn brick small" id="atomicBack">← Modes</button>
+      <span id="atomicScore">0 ✔</span>
+      <span id="atomicTimer" hidden>60s</span>
+    </div>
+    <div class="atomic-prompt brick" id="atomicPrompt" aria-live="polite"></div>
+    <div class="choice-grid" id="atomicChoices"></div>
+    <div class="memory-grid" id="memoryGrid" hidden></div>
+  </div>
+</section>
+
+<!-- ============ MULTIPLAYER ============ -->
+<section class="screen" id="screen-multi" aria-label="Play Together">
+  <div class="screen-head">
+    <button class="back-btn brick" data-go="home" aria-label="Back to home">←</button>
+    <h2>🎮 Play Together</h2><span></span>
+  </div>
+  <div id="multiSetup">
+    <p class="hint-text">Pass-and-play — no internet needed! Set up your players:</p>
+    <div class="player-setup">
+      <div class="player-card brick p1">
+        <label for="p1name">Player 1</label>
+        <input id="p1name" maxlength="12" value="Player 1" aria-label="Player 1 name">
+        <div class="avatar-row" data-p="1"></div>
+      </div>
+      <div class="player-card brick p2">
+        <label for="p2name">Player 2</label>
+        <input id="p2name" maxlength="12" value="Player 2" aria-label="Player 2 name">
+        <div class="avatar-row" data-p="2"></div>
+      </div>
+    </div>
+    <h3 class="det-q">Pick a battle!</h3>
+    <div class="game-grid">
+      <button class="game-card brick gc-guess" data-mm="duel"><span class="gc-emoji">🕵️</span><span class="gc-name">Guess Battle</span><span class="gc-sub">5 mystery elements each — highest score wins</span></button>
+      <button class="game-card brick gc-build" data-mm="speedbuild"><span class="gc-emoji">🧩</span><span class="gc-name">Speed Build</span><span class="gc-sub">60 seconds each — who places more?</span></button>
+      <button class="game-card brick gc-atomic" data-mm="quiz"><span class="gc-emoji">🔢</span><span class="gc-name">Atomic Duel</span><span class="gc-sub">Take turns — 5 questions each</span></button>
+      <button class="game-card brick gc-mix" data-mm="mixrace"><span class="gc-emoji">🧪</span><span class="gc-name">Mix Lab Race</span><span class="gc-sub">First to 4 discoveries wins!</span></button>
+    </div>
+  </div>
+  <div id="multiPlay" hidden>
+    <div class="versus-bar">
+      <div class="vs-player" id="vsP1"><span class="vs-av">🦊</span><span class="vs-name">P1</span><b class="vs-score">0</b></div>
+      <span class="vs-vs">VS</span>
+      <div class="vs-player" id="vsP2"><span class="vs-av">🐸</span><span class="vs-name">P2</span><b class="vs-score">0</b></div>
+    </div>
+    <div id="multiStage"></div>
+  </div>
+</section>
+
+<!-- ============ ENCYCLOPEDIA ============ -->
+<section class="screen" id="screen-encyclopedia" aria-label="Element Encyclopedia">
+  <div class="screen-head">
+    <button class="back-btn brick" data-go="home" aria-label="Back to home">←</button>
+    <h2>📖 Encyclopedia</h2><span></span>
+  </div>
+  <p class="hint-text">Tap any element to meet it!</p>
+  <div class="legend" id="encyLegend"></div>
+  <div class="ptable-wrap"><div class="ptable" id="encyTable" role="grid" aria-label="Interactive periodic table"></div></div>
+</section>
+
+<!-- ============ COLLECTION ============ -->
+<section class="screen" id="screen-collection" aria-label="My Collection">
+  <div class="screen-head">
+    <button class="back-btn brick" data-go="home" aria-label="Back to home">←</button>
+    <h2>🃏 My Collection</h2><span></span>
+  </div>
+  <p class="hint-text" id="collCount"></p>
+  <div class="coll-grid" id="collGrid"></div>
+</section>
+
+<!-- ============ BADGES ============ -->
+<section class="screen" id="screen-badges" aria-label="Badges">
+  <div class="screen-head">
+    <button class="back-btn brick" data-go="home" aria-label="Back to home">←</button>
+    <h2>🏆 Badges</h2><span></span>
+  </div>
+  <div class="badge-grid" id="badgeGrid"></div>
+</section>
+
+<!-- ============ PARENT / TEACHER ============ -->
+<section class="screen" id="screen-parent" aria-label="Grown-up zone">
+  <div class="screen-head">
+    <button class="back-btn brick" data-go="home" aria-label="Back to home">←</button>
+    <h2>👩‍🏫 Grown-Up Zone</h2><span></span>
+  </div>
+  <div id="parentGate" class="clue-box brick">
+    <p>To enter, solve: <b id="gateQ">7 × 6 = ?</b></p>
+    <div class="gate-row">
+      <input id="gateA" inputmode="numeric" aria-label="Answer">
+      <button class="pill-btn brick" id="gateGo">Enter</button>
+    </div>
+  </div>
+  <div id="parentStats" hidden></div>
+</section>
+
+</main>
+
+<!-- ============ MODALS ============ -->
+<div class="modal-veil" id="modalVeil" hidden>
+  <div class="modal brick" role="dialog" aria-modal="true" id="modalBox">
+    <button class="modal-close icon-btn" id="modalClose" aria-label="Close">✕</button>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
