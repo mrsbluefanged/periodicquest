@@ -169,9 +169,9 @@ button.brick:active, .ptile:active, .choice-btn:active {
   transition:transform .08s, box-shadow .08s, opacity .3s;
   padding:1px; user-select:none;
 }
-.ptile .tn { font-size:.5em; position:absolute; top:2px; left:4px; font-family:'Nunito'; font-weight:800; }
+.ptile .tn { font-size:clamp(.48rem, 1.05vw, .66rem); position:absolute; top:2px; left:4px; font-family:'Nunito'; font-weight:800; }
 .ptile .ts { font-size:clamp(.72rem, 1.7vw, 1.15rem); line-height:1; }
-.ptile .tname { font-size:.42em; font-family:'Nunito'; font-weight:800; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ptile .tname { font-size:clamp(.46rem, 1.15vw, .68rem); font-family:'Nunito'; font-weight:800; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .ptable.shelf .ptile .ts { font-size:1.5rem; }
 .ptable.shelf .ptile .tname { font-size:.72rem; }
 .ptile.dim { opacity:.22; pointer-events:none; }
@@ -392,3 +392,72 @@ button.brick:active, .ptile:active, .choice-btn:active {
   *, *::before, *::after { animation-duration:.001s !important; transition-duration:.001s !important; }
   .table-bg span { animation:none; }
 }
+
+
+/* ---------- beaker (2-4 slots) ---------- */
+.beaker-slots { display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap; }
+button.beaker-slot { cursor:pointer; padding:0; transition:transform .08s; }
+button.beaker-slot:active { transform:scale(.92); }
+
+/* ---------- element search ---------- */
+.search-row { display:flex; justify-content:center; margin:6px 0 10px; padding:0 12px; }
+.search-input {
+  font:800 1.05rem 'Nunito', sans-serif; color:var(--ink);
+  padding:12px 16px; min-height:48px; width:min(440px, 100%);
+  border:2.5px solid var(--ink); border-radius:14px; background:var(--white);
+  box-shadow:0 3px 0 var(--ink);
+}
+.search-input:focus-visible { outline:4px solid var(--blast); outline-offset:2px; }
+.ptile.search-miss { opacity:.14; pointer-events:none; }
+.sr-only { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+
+/* ---------- big text mode (Settings) ---------- */
+body.big-text { font-size:112.5%; --tile: clamp(42px, 8vw, 66px); }
+body.big-text .ptile .tn { font-size:.72rem; }
+body.big-text .ptile .tname { font-size:.74rem; }
+body.big-text .ptile .ts { font-size:clamp(.95rem, 2.1vw, 1.4rem); }
+body.big-text .ptable.shelf .ptile .ts { font-size:1.7rem; }
+body.big-text .ptable.shelf .ptile .tname { font-size:.85rem; }
+
+/* ---------- clickable HUD chips ---------- */
+button.stat-chip { cursor:pointer; font:inherit; transition:transform .08s; }
+button.stat-chip:active { transform:scale(.94); }
+button.stat-chip:focus-visible { outline:3px solid var(--blast); outline-offset:2px; }
+
+/* ---------- coin ledger ---------- */
+.ledger { list-style:none; padding:0; margin:8px 0 12px; max-height:240px; overflow-y:auto; text-align:left; }
+.ledger-row {
+  display:grid; grid-template-columns:1fr auto; gap:2px 10px; align-items:center;
+  padding:8px 10px; border-bottom:2px dashed #E4DEFA; font-size:.92rem;
+}
+.ledger-why { font-weight:800; }
+.ledger-amt { font-weight:900; font-family:'Baloo 2'; }
+.ledger-amt.plus { color:#1FA870; }
+.ledger-amt.minus { color:var(--bubblegum); }
+.ledger-when { grid-column:1 / -1; font-size:.75rem; opacity:.65; }
+
+/* ---------- level map ---------- */
+.lvlmap { list-style:none; padding:0; margin:10px 0 0; text-align:left; position:relative; }
+.lvlmap::before {
+  content:''; position:absolute; left:23px; top:24px; bottom:24px;
+  width:5px; border-radius:3px; background:#E4DEFA;
+}
+.lvl-node { display:flex; gap:12px; align-items:flex-start; padding:9px 0; position:relative; }
+.lvl-dot {
+  width:48px; height:48px; flex:0 0 48px; display:grid; place-items:center;
+  font-size:1.4rem; background:var(--white); border:3px solid var(--ink);
+  border-radius:50%; box-shadow:0 3px 0 var(--ink); z-index:1;
+}
+.lvl-node.done .lvl-dot { background:var(--slime); }
+.lvl-node.current .lvl-dot { background:var(--sunbeam); animation:glow 1.4s ease infinite; }
+.lvl-node.locked { opacity:.55; }
+.lvl-info { display:flex; flex-direction:column; gap:2px; padding-top:2px; }
+.lvl-info small { opacity:.8; }
+.lvl-extra { font-weight:900; font-size:.85rem; font-family:'Baloo 2'; }
+.lvl-bar { width:150px; height:12px; background:#E4DEFA; border:2px solid var(--ink); border-radius:8px; overflow:hidden; margin:3px 0; }
+.lvl-bar i { display:block; height:100%; background:linear-gradient(90deg,var(--sunbeam),var(--slime)); }
+
+/* ---------- hinted collection cards ---------- */
+.coll-card.locked { cursor:pointer; }
+.coll-card.locked.hinted .ce { filter:grayscale(.55); }
+.coll-card.locked.hinted .cn { color:var(--grape); }

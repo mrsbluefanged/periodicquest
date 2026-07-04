@@ -24,10 +24,9 @@
   <button class="avatar-btn" id="btnAvatar" aria-label="Change your avatar">
     <span id="avatarEmoji">🦊</span>
   </button>
-  <div class="topbar-stats" role="status" aria-label="Your rewards">
-    <span class="stat-chip stat-stars" id="chipStars" title="Stars">⭐ <b id="statStars">0</b></span>
-    <span class="stat-chip stat-coins" id="chipCoins" title="Coins">🪙 <b id="statCoins">0</b></span>
-    <span class="stat-chip stat-level" id="chipLevel" title="Level">🧪 Lv <b id="statLevel">1</b></span>
+  <div class="topbar-stats" aria-label="Your rewards">
+    <button class="stat-chip stat-coins" id="chipCoins" aria-label="Coin bank — tap to see your coins and history">🪙 <b id="statCoins">0</b></button>
+    <button class="stat-chip stat-level" id="chipLevel" aria-label="Level map — tap to see your learning journey">🧪 Lv <b id="statLevel">1</b></button>
   </div>
   <button class="icon-btn" id="btnSound" aria-label="Toggle sound" aria-pressed="true">🔊</button>
   <button class="icon-btn" id="btnSettings" aria-label="Settings and grown-up zone">⚙️</button>
@@ -107,13 +106,15 @@
     <button class="pill-btn brick small" id="mixShelfToggle" aria-pressed="false">Full table</button>
   </div>
   <div class="beaker-zone" aria-live="polite">
-    <div class="beaker-slot" id="slotA" aria-label="First element slot">?</div>
-    <div class="beaker-plus" aria-hidden="true">＋</div>
-    <div class="beaker-slot" id="slotB" aria-label="Second element slot">?</div>
+    <div class="beaker-slots" id="beakerSlots"></div>
     <button class="mix-btn brick" id="btnMix" disabled>MIX! ⚗️</button>
   </div>
-  <p class="hint-text" id="mixHint">Tap two elements, then hit MIX!</p>
-  <div class="ptable-wrap"><div class="ptable" id="mixTable" role="grid" aria-label="Periodic table — pick two elements"></div></div>
+  <p class="hint-text" id="mixHint">Tap 2 to 4 elements, then hit MIX!</p>
+  <div class="search-row">
+    <input type="search" id="mixSearch" class="search-input" placeholder="🔍 Find an element…" aria-label="Search elements by name, symbol, or number">
+  </div>
+  <p class="sr-only" id="mixSearchStatus" role="status"></p>
+  <div class="ptable-wrap"><div class="ptable" id="mixTable" role="grid" aria-label="Periodic table — pick two to four elements"></div></div>
 </section>
 
 <!-- ============ GUESS THE ELEMENT ============ -->
@@ -247,6 +248,10 @@
     <h2>📖 Encyclopedia</h2><span></span>
   </div>
   <p class="hint-text">Tap any element to meet it!</p>
+  <div class="search-row">
+    <input type="search" id="encySearch" class="search-input" placeholder="🔍 Search name, symbol, or number…" aria-label="Search elements by name, symbol, or number">
+  </div>
+  <p class="sr-only" id="encySearchStatus" role="status"></p>
   <div class="legend" id="encyLegend"></div>
   <div class="ptable-wrap"><div class="ptable" id="encyTable" role="grid" aria-label="Interactive periodic table"></div></div>
 </section>

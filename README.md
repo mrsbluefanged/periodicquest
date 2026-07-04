@@ -10,7 +10,7 @@ A kid-friendly Progressive Web App that teaches the periodic table through five 
 - **🔢 Atomic Challenge** — 5 modes: number→element, element→number, symbol match, memory match, 60-second speed round
 - **🎮 Play Together** — pass-and-play: Guess Battle, Speed Build, Atomic Duel, Mix Lab Race
 - **📖 Encyclopedia** — all 118 elements with child-friendly facts, uses, and where they're found
-- **Rewards** — stars, coins, XP, 8 progressive learning levels, 12 badges, daily challenges, confetti
+- **Rewards** — a single coin economy with a tappable Coin Bank (balance + transaction history), XP with a tappable 8-level Quest Map, 12 badges, daily challenges, confetti. Coins are spent in the Collection: reveal a compound's name (10) or unlock its card outright (30)
 - **👩‍🏫 Grown-Up Zone** — accuracy, games played, recently learned elements, reset (behind a simple math gate)
 - **Two modes** — 🐣 Beginner (6–8) and 🚀 Explorer (9–12)
 
@@ -23,6 +23,8 @@ Large touch targets (≥44px), visible focus rings, ARIA labels and live regions
 3. Done. All paths are relative, so it works at `https://<user>.github.io/<repo>/` with no config.
 
 Works offline after the first load (service worker caches the app shell and fonts). Progress is saved in `localStorage` on the device.
+
+**Updating later:** bump the `CACHE` constant in `sw.js` (`pq-v1` → `pq-v2`) whenever you edit files, so returning players receive the new version.
 
 ## Run locally
 Any static server, e.g. `python3 -m http.server` in this folder, then open `http://localhost:8000`.

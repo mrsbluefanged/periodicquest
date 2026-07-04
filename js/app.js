@@ -32,8 +32,9 @@ const FAMOUS = [...Array.from({length:54},(_,i)=>i+1), 74,78,79,80,82,88,92];
 
 /* ---------- persistent state ---------- */
 const DEFAULTS = {
+  big:false,
   name:'', avatar:'🦊', mode:'beginner', sound:true,
-  stars:0, coins:0, xp:0,
+  stars:0, coins:0, xp:0, ledger:[], hinted:[],
   discovered:[],            // compound keys
   badges:[],
   encySeen:[],
@@ -46,6 +47,9 @@ function loadState(){
   catch(e){ S = structuredClone(DEFAULTS); }
   S.stats = Object.assign({}, structuredClone(DEFAULTS.stats), S.stats||{});
   S.daily = Object.assign({}, structuredClone(DEFAULTS.daily), S.daily||{});
+  if(!Array.isArray(S.ledger)) S.ledger=[];
+  if(!Array.isArray(S.hinted)) S.hinted=[];
+  if(S.stars>0){ const c=S.stars*2; S.coins+=c; logCoins(c,'Stars converted to coins'); S.stars=0; }
 }
 function save(){ localStorage.setItem('pq-save', JSON.stringify(S)); }
 
@@ -124,12 +128,26 @@ function toast(msg, ms=2200){
 }
 
 /* ---------- rewards ---------- */
-function award({stars=0, coins=0, xp=0, quiet=false}={}){
+function logCoins(delta, why){
+  if(!delta || !why) return;
+  S.ledger.unshift({t:Date.now(), d:delta, why});
+  if(S.ledger.length>40) S.ledger.length=40;
+}
+function spend(cost, why){
+  if(S.coins < cost){ sfx.bad(); toast(`🪙 Not enough coins — you need ${cost-S.coins} more!`); return false; }
+  S.coins -= cost;
+  logCoins(-cost, why);
+  refreshHud(); save(); sfx.coin();
+  return true;
+}
+function award({stars=0, coins=0, xp=0, quiet=false, why=''}={}){
   const before=levelIndex();
-  S.stars+=stars; S.coins+=coins; S.xp+=xp;
+  coins += stars*2;               // legacy: any star amounts become coins
+  S.coins+=coins; S.xp+=xp;
+  logCoins(coins, why);
   const after=levelIndex();
   refreshHud(); save();
-  if(!quiet && (stars||coins)) sfx.coin();
+  if(!quiet && coins) sfx.coin();
   if(after>before){
     sfx.fanfare(); confetti(120);
     toast(`🎉 Level up! ${LEVELS[after].name.split('·')[1].trim()} unlocked!`, 3200);
@@ -195,7 +213,7 @@ function bumpDaily(kind){
   S.daily.progress++;
   if(S.daily.progress>=def.n){
     S.daily.done=true; S.stats.dailyDone=true;
-    award({coins:25}); confetti(100); sfx.fanfare();
+    award({coins:25, why:'Daily challenge'}); confetti(100); sfx.fanfare();
     toast('📅 Daily challenge complete! +25 🪙', 3000);
   }
   save(); renderDaily();
@@ -209,7 +227,6 @@ function renderDaily(){
 
 /* ---------- HUD ---------- */
 function refreshHud(){
-  $('#statStars').textContent=S.stars;
   $('#statCoins').textContent=S.coins;
   const li=levelIndex();
   $('#statLevel').textContent=li+1;
@@ -227,8 +244,30 @@ function refreshHud(){
   $('#greeting').textContent = S.name ? `Ready to explore, ${S.name}?` : 'Ready to explore, scientist?';
 }
 
-/* ---------- navigation ---------- */
-function go(id){
+/* ---------- element search (dims non-matching tiles) ---------- */
+function attachSearch(input, getTiles, statusEl){
+  const run = ()=>{
+    const q = input.value.trim().toLowerCase();
+    let hits = 0;
+    getTiles().forEach(t=>{
+      const el = byNum[t.dataset.n];
+      if(!el || t.classList.contains('empty-slot')){ t.classList.remove('search-miss'); return; }
+      const hit = !q
+        || el.name.toLowerCase().includes(q)
+        || el.sym.toLowerCase().startsWith(q)
+        || String(el.n) === q;
+      t.classList.toggle('search-miss', !hit);
+      if(hit) hits++;
+    });
+    if(statusEl) statusEl.textContent = q ? `${hits} element${hits===1?'':'s'} match "${input.value.trim()}"` : '';
+  };
+  input.addEventListener('input', run);
+  return run;
+}
+
+/* ---------- navigation (with hardware/browser back support) ---------- */
+let CUR_SCREEN='home', IGNORE_POP=false;
+function go(id, push=true){
   $$('.screen').forEach(s=>s.classList.remove('active'));
   $('#screen-'+id).classList.add('active');
   sfx.whoosh();
@@ -243,7 +282,19 @@ function go(id){
   if(id==='encyclopedia') Ency.enter();
   if(id==='collection') Coll.enter();
   if(id==='badges') renderBadges();
+  CUR_SCREEN = id;
+  if(push) history.pushState({s:id}, '');
 }
+window.addEventListener('popstate', e=>{
+  if(IGNORE_POP){ IGNORE_POP=false; return; }
+  const st = e.state || {s:'home'};
+  if(!$('#modalVeil').hidden){        // back closes an open modal first
+    closeModal(true);
+    if(st.m) return;
+  }
+  if(st.m) return;
+  if(st.s && st.s !== CUR_SCREEN) go(st.s, false);
+});
 document.addEventListener('click', e=>{
   const b = e.target.closest('[data-go]');
   if(b){ go(b.dataset.go); }
@@ -251,11 +302,17 @@ document.addEventListener('click', e=>{
 
 /* ---------- modal ---------- */
 function openModal(html){
+  if($('#modalVeil').hidden) history.pushState({s:CUR_SCREEN, m:true}, '');
   $('#modalContent').innerHTML = html;
   $('#modalVeil').hidden = false;
   $('#modalClose').focus();
 }
-function closeModal(){ $('#modalVeil').hidden = true; }
+function closeModal(fromPop=false){
+  const veil=$('#modalVeil');
+  if(veil.hidden) return;
+  veil.hidden = true;
+  if(!fromPop && history.state && history.state.m){ IGNORE_POP=true; history.back(); }
+}
 $('#modalClose').addEventListener('click', closeModal);
 $('#modalVeil').addEventListener('click', e=>{ if(e.target.id==='modalVeil') closeModal(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
@@ -326,85 +383,102 @@ function elementModal(el){
    GAME 1 — MIX LAB
    ============================================================ */
 const MixLab = (() => {
-  let picks=[], shelf=true;
+  const MAX = 4;
+  let picks=[], shelf=true, searchRun=null;
   function enter(){
     shelf = (S.mode==='beginner');
     picks=[]; renderSlots(); renderGrid();
     $('#mixShelfToggle').textContent = shelf ? 'Full table' : 'Easy shelf';
     $('#mixShelfToggle').setAttribute('aria-pressed', String(!shelf));
-    $('#mixHint').textContent='Tap two elements, then hit MIX!';
+    $('#mixHint').textContent='Tap 2 to 4 elements, then hit MIX!';
     trackGame('mixlab');
   }
   function renderGrid(){
     renderTable($('#mixTable'), { shelf, onTap: pick });
     syncSelected();
+    if(searchRun) searchRun();
   }
   function renderSlots(){
-    const [a,b]=picks;
-    const sa=$('#slotA'), sb=$('#slotB');
-    sa.textContent = a? a.sym : '?'; sb.textContent = b? b.sym : '?';
-    sa.className = 'beaker-slot'+(a?' filled cat-'+a.cat:'');
-    sb.className = 'beaker-slot'+(b?' filled cat-'+b.cat:'');
+    const wrap=$('#beakerSlots'); wrap.innerHTML='';
+    const plus=()=>{ const p=document.createElement('span'); p.className='beaker-plus'; p.setAttribute('aria-hidden','true'); p.textContent='＋'; wrap.appendChild(p); };
+    picks.forEach((p,i)=>{
+      if(i>0) plus();
+      const s=document.createElement('button');
+      s.type='button';
+      s.className='beaker-slot filled cat-'+p.cat;
+      s.textContent=p.sym;
+      s.setAttribute('aria-label', p.name+' in the beaker — tap to remove');
+      s.addEventListener('click', ()=>{ sfx.pop(); picks.splice(i,1); renderSlots(); syncSelected(); });
+      wrap.appendChild(s);
+    });
+    if(picks.length<MAX){
+      if(picks.length) plus();
+      const e=document.createElement('div');
+      e.className='beaker-slot'; e.textContent='?';
+      e.setAttribute('aria-label','Empty beaker slot');
+      wrap.appendChild(e);
+    }
     $('#btnMix').disabled = picks.length<2;
   }
   function syncSelected(){
     $$('#mixTable .ptile').forEach(t=>{
-      t.classList.toggle('selected', picks.some(p=>p.n==t.dataset.n) && picks.filter(p=>p.n==t.dataset.n).length>0);
+      t.classList.toggle('selected', picks.some(p=>p.n==t.dataset.n));
     });
   }
   function pick(el){
+    if(picks.length>=MAX){ sfx.bad(); toast('🧪 Beaker is full! Tap an element in the beaker to remove it.'); return; }
     sfx.pick();
-    if(picks.length>=2) picks=[];
     picks.push(el);
     renderSlots(); syncSelected();
   }
-  function whyNot(a,b){
+  function whyNotMulti(list){
     const metals=['alkali','alkaline','transition','post-transition','lanthanide','actinide'];
-    if(a.cat==='noble'||b.cat==='noble'){
-      const g=a.cat==='noble'?a:b;
-      return `👑 ${g.name} is a noble gas — the loner of the table! Noble gases have a full set of electrons, so they almost never hold hands with other elements.`;
-    }
-    if(metals.includes(a.cat)&&metals.includes(b.cat)){
-      return `🔧 Two metals don't make a compound — but they CAN melt together into an alloy, like bronze (copper + tin) or steel!`;
-    }
-    return `🔬 ${a.name} and ${b.name} don't usually team up in everyday life. Scientists might force them together in a lab, but it's not a famous combo. Try another mix!`;
+    const noble=list.find(e=>e.cat==='noble');
+    if(noble) return `👑 ${noble.name} is a noble gas — the loner of the table! Noble gases have a full set of electrons, so they almost never hold hands with other elements.`;
+    if(list.every(e=>metals.includes(e.cat)))
+      return `🔧 Metals alone don't make a compound — but they CAN melt together into an alloy, like bronze (copper + tin) or steel!`;
+    if(list.length>2)
+      return `🔬 ${list.map(e=>e.name).join(' + ')} isn't a famous team. Big compounds are picky about their members — try swapping one out, or start from a pair that works and add oxygen or hydrogen!`;
+    return `🔬 ${list[0].name} and ${list[1].name} don't usually team up in everyday life. Scientists might force them together in a lab, but it's not a famous combo. Try another mix!`;
   }
   function mix(){
     if(picks.length<2) return;
-    const [a,b]=picks;
-    const key=[a.sym,b.sym].sort().join('-');
-    const c=COMP_BY_KEY[key];
+    const syms = picks.map(p=>p.sym);
+    const uniq = [...new Set(syms)].sort();
+    const key = (uniq.length===1) ? uniq[0]+'-'+uniq[0] : uniq.join('-');
+    const c = COMP_BY_KEY[key];
     sfx.whoosh();
     setTimeout(()=>{
       if(c){
         const isNew=!S.discovered.includes(key);
         if(isNew){
           S.discovered.push(key); save();
-          award({stars:3, coins:5, xp:8});
+          award({coins:10, xp:8, why:'Discovered '+c.name});
           bumpDaily('compounds');
           confetti(100); sfx.good();
         } else { sfx.pop(); }
-        trackCorrect(a);
+        trackCorrect(picks[0]);
         openModal(`
           <div class="comp-card">
             ${isNew?'<span class="new-ribbon">✨ NEW DISCOVERY! ✨</span>':''}
             <div class="comp-emoji">${c.emoji}</div>
             <h3 class="comp-name">${c.name}</h3>
-            <div class="comp-formula">${a.sym} + ${b.sym} → ${c.formula}</div>
+            <div class="comp-formula">${uniq.join(' + ')} → ${c.formula}</div>
             <div class="comp-fact">💡 Fun fact: ${c.fact}</div>
             <b>Used for:</b>
             <ul class="comp-uses">${c.uses.map(u=>`<li>${u}</li>`).join('')}</ul>
-            ${isNew?'<p>+3 ⭐ · +5 🪙 · +8 XP</p>':'<p>Already in your collection! 🃏</p>'}
+            ${isNew?'<p>+10 🪙 · +8 XP</p>':'<p>Already in your collection! 🃏</p>'}
           </div>`);
         checkBadges();
       } else {
         sfx.bad();
+        const uniqEls = uniq.map(s=>bySym[s]);
         openModal(`
           <div class="comp-card">
             <div class="comp-emoji">🤔</div>
             <h3 class="comp-name">Hmm, no reaction!</h3>
-            <div class="comp-formula">${a.sym} + ${b.sym}</div>
-            <div class="comp-fact">${whyNot(a,b)}</div>
+            <div class="comp-formula">${uniq.join(' + ')}</div>
+            <div class="comp-fact">${whyNotMulti(uniqEls)}</div>
             <p>Keep experimenting — real scientists learn from every try! 🧑‍🔬</p>
           </div>`);
       }
@@ -418,6 +492,7 @@ const MixLab = (() => {
     $('#mixShelfToggle').setAttribute('aria-pressed', String(!shelf));
     renderGrid();
   }
+  searchRun = attachSearch($('#mixSearch'), ()=>$$('#mixTable .ptile'), $('#mixSearchStatus'));
   return { enter };
 })();
 
@@ -477,8 +552,8 @@ const Guess = (() => {
   function guess(el, tile){
     if(el.n===target.n){
       sfx.good(); confetti(90);
-      const stars=Math.max(1, 5-clueIdx);
-      award({stars, coins:stars*2, xp:5+stars*2});
+      const coins=Math.max(2, (5-clueIdx)*3);
+      award({coins, xp:5+coins, why:'Guessed '+target.name});
       trackCorrect(el);
       openModal(`
         <div class="comp-card">
@@ -486,7 +561,7 @@ const Guess = (() => {
           <h3 class="comp-name">It's ${el.name}!</h3>
           <div class="comp-formula">${el.sym} · #${el.n}</div>
           <div class="comp-fact">💡 ${el.fact}</div>
-          <p>+${stars} ⭐ for solving it in ${clueIdx+1} clue${clueIdx?'s':''}!</p>
+          <p>+${coins} 🪙 for solving it in ${clueIdx+1} clue${clueIdx?'s':''}!</p>
           <button class="pill-btn brick" id="guessAgain">🔁 Play again</button>
         </div>`);
       $('#guessAgain').addEventListener('click', ()=>{ closeModal(); newRound(); });
@@ -577,13 +652,13 @@ const Build = (() => {
     if(!timed && diff==='118'){ S.stats.builtAll=true; save(); }
     checkBadges();
     sfx.fanfare(); confetti(130);
-    const stars = Math.max(1, Math.round(placedCount/6));
-    award({stars, coins:placedCount, xp:placedCount*2});
+    const coins = placedCount + Math.round(placedCount/3);
+    award({coins, xp:placedCount*2, why:'Build the Table'});
     openModal(`
       <div class="comp-card">
         <div class="comp-emoji">🏗️</div>
         <h3 class="comp-name">${timed?"Time's up!":"Table complete!"}</h3>
-        <div class="comp-fact">You placed <b>${placedCount}</b> element${placedCount===1?'':'s'}! +${stars} ⭐ · +${placedCount} 🪙</div>
+        <div class="comp-fact">You placed <b>${placedCount}</b> element${placedCount===1?'':'s'}! +${coins} 🪙</div>
         <button class="pill-btn brick" id="buildAgain">🔁 Build again</button>
       </div>`);
     $('#buildAgain').addEventListener('click', ()=>{ closeModal(); start(); });
@@ -642,8 +717,8 @@ const Detective = (() => {
       btn.classList.add('correct'); sfx.good(); confetti(60);
       streak++;
       if(streak>=5 && !S.stats.perfect){ S.stats.perfect=true; save(); }
-      const stars=extraUsed?1:2;
-      award({stars, coins:2, xp:6});
+      const coins=extraUsed?4:6;
+      award({coins, xp:6, why:'Detective case solved'});
       trackCorrect(c); updateScore(); checkBadges();
       setTimeout(newRound, 900);
     } else {
@@ -737,13 +812,13 @@ const Atomic = (() => {
     clearInterval(timer);
     if(score>S.stats.speedBest){ S.stats.speedBest=score; save(); }
     checkBadges(); sfx.fanfare(); confetti(110);
-    const stars=Math.max(1,Math.floor(score/4));
-    award({stars, coins:score});
+    const coins=score + Math.floor(score/2);
+    award({coins, why:'Speed Round'});
     openModal(`
       <div class="comp-card">
         <div class="comp-emoji">⏱️</div>
         <h3 class="comp-name">Speed Round over!</h3>
-        <div class="comp-fact">You answered <b>${score}</b> correctly! +${stars} ⭐ · +${score} 🪙</div>
+        <div class="comp-fact">You answered <b>${score}</b> correctly! +${coins} 🪙</div>
         <button class="pill-btn brick" id="speedAgain">🔁 Again!</button>
       </div>`);
     $('#speedAgain').addEventListener('click', ()=>{ closeModal(); startMode('E'); });
@@ -775,10 +850,10 @@ const Atomic = (() => {
         award({coins:2, xp:4, quiet:true}); trackCorrect(c.e);
         memFirst=null; memLock=false;
         if(memPairs===6){
-          confetti(120); sfx.fanfare(); award({stars:3});
+          confetti(120); sfx.fanfare(); award({coins:6, why:'Memory match'});
           openModal(`<div class="comp-card"><div class="comp-emoji">🃏</div>
             <h3 class="comp-name">All pairs found!</h3>
-            <div class="comp-fact">Amazing memory! +3 ⭐</div>
+            <div class="comp-fact">Amazing memory! +6 🪙</div>
             <button class="pill-btn brick" id="memAgain">🔁 New board</button></div>`);
           $('#memAgain').addEventListener('click',()=>{ closeModal(); memoryStart(); });
         }
@@ -956,7 +1031,7 @@ const Multi = (() => {
     const [a,b]=P;
     const winner = a.score===b.score ? null : (a.score>b.score?a:b);
     sfx.fanfare(); confetti(150);
-    award({coins:5, xp:5, quiet:true});
+    award({coins:5, xp:5, quiet:true, why:'Read about '+el.name});
     $('#multiStage').innerHTML=`<div class="pass-veil">
       <div class="big">${winner?winner.av+'🏆':'🤝'}</div>
       <h3>${winner? winner.name+' wins!' : "It's a tie!"}</h3>
@@ -986,30 +1061,69 @@ const Ency = (() => {
       });
     }
     renderTable($('#encyTable'), { onTap: elementModal });
+    encySearchRun();
   }
+  const encySearchRun = attachSearch($('#encySearch'), ()=>$$('#encyTable .ptile'), $('#encySearchStatus'));
   return { enter };
 })();
 
 const Coll = (() => {
+  const HINT_COST=10, UNLOCK_COST=30;
   function enter(){
     $('#collCount').textContent=`You've discovered ${S.discovered.length} of ${PQ_DATA.COMPOUNDS.length} compounds. Can you find them all?`;
     const g=$('#collGrid'); g.innerHTML='';
     PQ_DATA.COMPOUNDS.forEach(c=>{
       const owned=S.discovered.includes(c.key);
-      const d=document.createElement(owned?'button':'div');
-      d.className='coll-card brick'+(owned?'':' locked');
+      const hinted=S.hinted.includes(c.key);
+      const d=document.createElement('button');
+      d.className='coll-card brick'+(owned?'':hinted?' locked hinted':' locked');
+      const ing=(c.els||[c.a,c.b]).join(' + ');
       d.innerHTML= owned
         ? `<div class="ce">${c.emoji}</div><div class="cn">${c.name}</div><div class="cf">${c.formula}</div>`
-        : `<div class="ce">❓</div><div class="cn">???</div><div class="cf">${c.a} + ${c.b}</div>`;
-      if(owned) d.addEventListener('click',()=>openModal(`
-        <div class="comp-card">
-          <div class="comp-emoji">${c.emoji}</div>
-          <h3 class="comp-name">${c.name}</h3>
-          <div class="comp-formula">${c.formula}</div>
-          <div class="comp-fact">💡 ${c.fact}</div>
-          <b>Used for:</b><ul class="comp-uses">${c.uses.map(u=>`<li>${u}</li>`).join('')}</ul>
-        </div>`));
+        : hinted
+          ? `<div class="ce">${c.emoji}</div><div class="cn">${c.name}</div><div class="cf">${ing}</div>`
+          : `<div class="ce">❓</div><div class="cn">???</div><div class="cf">${ing}</div>`;
+      d.setAttribute('aria-label', owned ? c.name : hinted ? c.name+' — mix it to collect, or unlock with coins' : 'Mystery compound made of '+ing+' — tap for options');
+      d.addEventListener('click', ()=> owned ? openCard(c) : openLocked(c));
       g.appendChild(d);
+    });
+  }
+  function openCard(c){
+    openModal(`
+      <div class="comp-card">
+        <div class="comp-emoji">${c.emoji}</div>
+        <h3 class="comp-name">${c.name}</h3>
+        <div class="comp-formula">${c.formula}</div>
+        <div class="comp-fact">💡 ${c.fact}</div>
+        <b>Used for:</b><ul class="comp-uses">${c.uses.map(u=>`<li>${u}</li>`).join('')}</ul>
+      </div>`);
+  }
+  function openLocked(c){
+    const hinted=S.hinted.includes(c.key);
+    const ing=(c.els||[c.a,c.b]).join(' + ');
+    openModal(`
+      <div class="comp-card">
+        <div class="comp-emoji">${hinted?c.emoji:'❓'}</div>
+        <h3 class="comp-name">${hinted?c.name:'Mystery compound'}</h3>
+        <div class="comp-formula">${ing}</div>
+        <div class="comp-fact">${hinted
+          ? '💡 You bought the name — now mix '+ing+' in the Mix Lab to collect it for free!'
+          : '🕵️ Mix these elements in the Mix Lab to discover it — or spend coins below!'}</div>
+        ${hinted?'':`<button class="pill-btn brick" id="buyHint">💡 Reveal name — ${HINT_COST} 🪙</button>`}
+        <button class="pill-btn brick" id="buyUnlock">✨ Unlock card — ${UNLOCK_COST} 🪙</button>
+        <p style="opacity:.75">You have ${S.coins} 🪙</p>
+      </div>`);
+    const bH=$('#buyHint');
+    if(bH) bH.addEventListener('click', ()=>{
+      if(!spend(HINT_COST, 'Hint: '+c.name)) return;
+      S.hinted.push(c.key); save();
+      closeModal(); enter(); toast('💡 It\'s '+c.name+'! Now mix '+ing+' to collect it!');
+    });
+    $('#buyUnlock').addEventListener('click', ()=>{
+      if(!spend(UNLOCK_COST, 'Unlocked '+c.name)) return;
+      S.discovered.push(c.key); save();
+      confetti(90); sfx.good(); checkBadges();
+      closeModal(); enter(); openCard(c);
     });
   }
   return { enter };
@@ -1104,6 +1218,67 @@ $('#btnAvatar').addEventListener('click',()=>{
   });
 });
 
+
+/* ---------- coin bank & level map ---------- */
+function timeAgo(t){
+  const s=Math.floor((Date.now()-t)/1000);
+  if(s<60) return 'just now';
+  const m=Math.floor(s/60); if(m<60) return m+'m ago';
+  const h=Math.floor(m/60); if(h<24) return h+'h ago';
+  const d=Math.floor(h/24); return d===1?'yesterday':d+'d ago';
+}
+function openBank(){
+  const rows = S.ledger.slice(0,15).map(e=>`
+    <li class="ledger-row">
+      <span class="ledger-why">${e.why}</span>
+      <span class="ledger-amt ${e.d>=0?'plus':'minus'}">${e.d>=0?'+':''}${e.d} 🪙</span>
+      <span class="ledger-when">${timeAgo(e.t)}</span>
+    </li>`).join('');
+  openModal(`
+    <div class="comp-card">
+      <div class="comp-emoji">🪙</div>
+      <h3 class="comp-name">Coin Bank</h3>
+      <div class="comp-formula">${S.coins} coins</div>
+      <div class="comp-fact" style="text-align:left">💰 <b>Earn coins</b> by discovering compounds, winning games, and finishing the daily challenge.<br>🛍️ <b>Spend them</b> in My Collection — buy a name hint (10 🪙) or unlock a compound card (30 🪙)!</div>
+      ${rows ? `<b>Recent history</b><ul class="ledger">${rows}</ul>` : '<p>No coin history yet — go play and earn some! 🎮</p>'}
+      <button class="pill-btn brick" data-go="collection" id="bankToColl">🃏 Go to My Collection</button>
+    </div>`);
+  $('#bankToColl').addEventListener('click', ()=>closeModal());
+}
+const LEVEL_EMOJI = ['🔤','🔣','🔢','📊','📈','🧊','🧠','⚗️'];
+function openLevelMap(){
+  const cur = levelIndex();
+  const nodes = LEVELS.map((l,i)=>{
+    const [lv, topic] = l.name.split('·').map(s=>s.trim());
+    let state='locked', extra='🔒 '+l.xp+' XP';
+    if(i<cur){ state='done'; extra='✅ Complete'; }
+    if(i===cur){
+      state='current';
+      const next=LEVELS[i+1];
+      extra = next
+        ? `<div class="lvl-bar"><i style="width:${Math.min(100,Math.round((S.xp-l.xp)/(next.xp-l.xp)*100))}%"></i></div>${S.xp} / ${next.xp} XP`
+        : '👑 Max level!';
+    }
+    return `
+      <li class="lvl-node ${state}">
+        <span class="lvl-dot">${state==='locked'?'🔒':LEVEL_EMOJI[i]}</span>
+        <div class="lvl-info">
+          <b>${lv} — ${topic}</b>
+          <small>${l.unlock}</small>
+          <span class="lvl-extra">${extra}</span>
+        </div>
+      </li>`;
+  }).join('');
+  openModal(`
+    <div class="comp-card">
+      <h3 class="comp-name">🗺️ Your Quest Map</h3>
+      <p>${LEVELS.length} levels of element mastery — earn XP in any game to climb!</p>
+      <ol class="lvlmap">${nodes}</ol>
+    </div>`);
+}
+$('#chipCoins').addEventListener('click', openBank);
+$('#chipLevel').addEventListener('click', openLevelMap);
+
 $('#btnSound').addEventListener('click',()=>{
   S.sound=!S.sound; save(); refreshHud();
   if(S.sound) sfx.pop();
@@ -1114,8 +1289,14 @@ $('#btnSettings').addEventListener('click',()=>{
     <div class="comp-card">
       <h3 class="comp-name" style="font-size:1.4rem">⚙️ Settings</h3>
       <p style="text-align:left">Periodic Quest saves your progress on this device — no account, no internet needed after the first visit. Install it from your browser menu to play like a real app!</p>
+      <button class="pill-btn brick" id="toggleBig" aria-pressed="${S.big}">🔍 Big text: ${S.big?'ON':'OFF'}</button>
       <button class="pill-btn brick" id="goParent">👩‍🏫 Grown-Up Zone</button>
     </div>`);
+  $('#toggleBig').addEventListener('click',()=>{
+    S.big=!S.big; save(); applyBigText(); sfx.pick();
+    $('#toggleBig').textContent = '🔍 Big text: '+(S.big?'ON':'OFF');
+    $('#toggleBig').setAttribute('aria-pressed', String(S.big));
+  });
   $('#goParent').addEventListener('click',()=>{ closeModal(); Parent.gate(); go('parent'); });
 });
 
@@ -1138,8 +1319,11 @@ function paintBg(){
 }
 
 /* boot */
+function applyBigText(){ document.body.classList.toggle('big-text', !!S.big); }
 loadState();
+applyBigText();
 initDaily();
 refreshHud();
 paintBg();
-go('home');
+history.replaceState({s:'home'}, '');
+go('home', false);
