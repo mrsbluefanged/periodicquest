@@ -8,7 +8,7 @@ A kid-friendly Progressive Web App that teaches the periodic table through five 
 - **🧩 Build the Table** — place elements on an empty table; First 10 / First 20 / All 118 / Timed
 - **⚛️ Property Detective** — "Who am I?" with clue categories that get more scientific by difficulty
 - **🔢 Atomic Challenge** — 5 modes: number→element, element→number, symbol match, memory match, 60-second speed round
-- **🎮 Play Together** — pass-and-play: Guess Battle, Speed Build, Atomic Duel, Mix Lab Race
+- **🔁 Pass the Phone Face-Off** — take turns answering your own question deck (no spoilers): pick topic (numbers / symbols / clues / mix), difficulty, questions per player (3-15), and seconds per question (5-30). Correct answers earn 10 points plus remaining seconds as a speed bonus
 - **📖 Encyclopedia** — all 118 elements with child-friendly facts, uses, and where they're found
 - **Rewards** — a single coin economy with a tappable Coin Bank (balance + transaction history), XP with a tappable 8-level Quest Map, 12 badges, daily challenges, confetti. Coins are spent in the Collection: reveal a compound's name (10) or unlock its card outright (30)
 - **👩‍🏫 Grown-Up Zone** — accuracy, games played, recently learned elements, reset (behind a simple math gate)

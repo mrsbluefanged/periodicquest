@@ -461,3 +461,26 @@ button.stat-chip:focus-visible { outline:3px solid var(--blast); outline-offset:
 .coll-card.locked { cursor:pointer; }
 .coll-card.locked.hinted .ce { filter:grayscale(.55); }
 .coll-card.locked.hinted .cn { color:var(--grape); }
+
+/* ---------- face-off setup ---------- */
+.setup-q { font-family:'Baloo 2'; margin:16px 4px 8px; }
+.opt-row { display:flex; flex-wrap:wrap; gap:10px; padding:0 2px; }
+.opt-btn {
+  flex:1 1 100px; min-height:56px; padding:10px 12px; text-align:left;
+  background:var(--white); border-radius:14px; display:flex; flex-direction:column; gap:2px;
+}
+.opt-btn.sm { flex:1 1 56px; align-items:center; text-align:center; }
+.opt-btn small { opacity:.75; font-weight:800; }
+.opt-btn[aria-checked="true"] { background:var(--blast); color:#fff; }
+.opt-btn[aria-checked="true"] small { opacity:.9; }
+
+/* ---------- face-off play ---------- */
+.fo-big { display:block; font-size:2.2rem; font-family:'Baloo 2'; line-height:1.1; }
+.fo-timer { display:flex; align-items:center; gap:10px; margin:4px 2px 10px; }
+.fo-bar {
+  flex:1; height:16px; background:var(--white); border:2.5px solid var(--ink);
+  border-radius:10px; overflow:hidden;
+}
+.fo-bar i { display:block; height:100%; width:100%; background:linear-gradient(90deg,var(--slime),var(--sunbeam),var(--bubblegum)); }
+.fo-timer b { font-family:'Baloo 2'; min-width:42px; text-align:right; }
+@media (prefers-reduced-motion: reduce){ .fo-bar i { transition:none !important; } }

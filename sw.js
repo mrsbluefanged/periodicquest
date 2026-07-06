@@ -1,5 +1,5 @@
 /* Periodic Quest service worker — cache-first app shell, offline after first load */
-const CACHE = 'pq-v3';
+const CACHE = 'pq-v4';
 const SHELL = [
   './', './index.html', './css/styles.css', './js/data.js', './js/app.js',
   './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png'

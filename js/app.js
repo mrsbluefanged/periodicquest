@@ -528,6 +528,7 @@ const Guess = (() => {
     newRound();
   }
   function newRound(){
+    detDone=false;
     const pool=POOLS[diff].map(n=>byNum[n]);
     target=pool[rand(pool.length)];
     clues=makeClues(target); clueIdx=0; wrongs=new Set();
@@ -708,11 +709,15 @@ const Detective = (() => {
     choices.forEach(c=>{
       const b=document.createElement('button');
       b.className='choice-btn'; b.textContent=`${c.emoji} ${c.name}`;
+      b.dataset.n=c.n;
       b.addEventListener('click',()=>answer(c,b));
       grid.appendChild(b);
     });
   }
+  let detDone=false;
   function answer(c,btn){
+    if(detDone) return;
+    detDone=true;
     if(c.n===target.n){
       btn.classList.add('correct'); sfx.good(); confetti(60);
       streak++;
@@ -722,8 +727,9 @@ const Detective = (() => {
       trackCorrect(c); updateScore(); checkBadges();
       setTimeout(newRound, 900);
     } else {
-      btn.classList.add('wrong'); btn.disabled=true;
-      sfx.bad(); trackWrong(); streak=0; updateScore();
+      btn.classList.add('wrong'); sfx.bad(); trackWrong(); streak=0; updateScore();
+      $$('#detChoices .choice-btn').forEach(x=>{ if(+x.dataset.n===target.n) x.classList.add('correct'); });
+      setTimeout(newRound, 1500);
     }
   }
   function moreClue(){
@@ -794,15 +800,19 @@ const Atomic = (() => {
     choices.forEach(c=>{
       const b=document.createElement('button');
       b.className='choice-btn'; b.textContent=label(c);
+      b.dataset.ok = c.n===el.n ? '1' : '';
       b.addEventListener('click',()=>{
         if(answered) return;
+        answered=true;
         if(c.n===el.n){
-          answered=true; b.classList.add('correct'); sfx.good();
+          b.classList.add('correct'); sfx.good();
           score++; $('#atomicScore').textContent=score+' ✔';
           award({coins:1, xp:3, quiet:true}); trackCorrect(el);
           setTimeout(question, mode==='E'?350:700);
         } else {
-          b.classList.add('wrong'); b.disabled=true; sfx.bad(); trackWrong();
+          b.classList.add('wrong'); sfx.bad(); trackWrong();
+          $$('#atomicChoices .choice-btn').forEach(x=>{ if(x.dataset.ok) x.classList.add('correct'); });
+          setTimeout(question, mode==='E'?700:1400);
         }
       });
       grid.appendChild(b);
@@ -878,8 +888,11 @@ const Atomic = (() => {
 const Multi = (() => {
   const AVATARS=['🦊','🐸','🐼','🦄','🐙','🦖','🐧','🚀'];
   let P=[{name:'Player 1',av:'🦊',score:0},{name:'Player 2',av:'🐸',score:0}];
-  let mode=null, turn=0, round=0, totalRounds=10, raceFound=[];
+  const OPT={qtype:'mix', diff:'easy', qs:5, secs:15};
+  let queue=[[],[]], idx=[0,0], turn=0, timer=null, timeLeft=0, locked=false;
+
   function enter(){
+    clearInterval(timer);
     $('#multiSetup').hidden=false; $('#multiPlay').hidden=true;
     $$('.avatar-row').forEach(row=>{
       if(row.children.length) return;
@@ -898,11 +911,46 @@ const Multi = (() => {
     });
     trackGame('multi');
   }
-  function begin(m){
-    mode=m; turn=0; round=0; raceFound=[];
+
+  /* option pickers */
+  $$('.opt-row').forEach(row=>{
+    row.addEventListener('click', e=>{
+      const b=e.target.closest('.opt-btn'); if(!b) return;
+      sfx.pick();
+      OPT[row.dataset.opt] = isNaN(+b.dataset.v) ? b.dataset.v : +b.dataset.v;
+      $$('.opt-btn',row).forEach(x=>x.setAttribute('aria-checked', String(x===b)));
+    });
+  });
+
+  function pool(){
+    if(OPT.diff==='easy') return PQ_DATA.ELEMENTS.slice(0,36);
+    if(OPT.diff==='med')  return FAMOUS.map(n=>byNum[n]);
+    return PQ_DATA.ELEMENTS;
+  }
+  function makeQ(el, P){
+    let kind=OPT.qtype;
+    if(kind==='mix') kind=['num','sym','clue'][rand(3)];
+    const others=n=>sample(P.filter(e=>e.n!==el.n), n);
+    if(kind==='num'){
+      if(rand(2)===0) return {prompt:`<b class="fo-big">${el.n}</b>Which element has this atomic number?`,
+        choices:shuffle([el,...others(3)]), label:c=>c.name, el};
+      return {prompt:`<b class="fo-big">${el.emoji} ${el.name}</b>What's my atomic number?`,
+        choices:shuffle([el,...sample(P.filter(e=>e.n!==el.n && Math.abs(e.n-el.n)<15),3).concat(others(3))].filter((v,i,a)=>a.indexOf(v)===i).slice(0,4)),
+        label:c=>'#'+c.n, el};
+    }
+    if(kind==='sym') return {prompt:`<b class="fo-big">${el.sym}</b>Which element is this?`,
+      choices:shuffle([el,...others(3)]), label:c=>c.name, el};
+    return {prompt:`🔍 ${STATE_KID[el.state]}<br>🔍 ${CAT_KIDTEXT[el.cat]}<br>🔍 I'm used for ${el.uses.split(',')[0].toLowerCase()}.<br><b>Who am I?</b>`,
+      choices:shuffle([el,...others(3)]), label:c=>c.emoji+' '+c.name, el};
+  }
+  function begin(){
     P[0].name=$('#p1name').value||'Player 1'; P[1].name=$('#p2name').value||'Player 2';
-    P[0].score=0; P[1].score=0;
-    totalRounds = m==='duel'||m==='quiz' ? 10 : m==='mixrace' ? 24 : 2;
+    P[0].score=0; P[1].score=0; idx=[0,0]; turn=0;
+    const pl=pool();
+    const targets=shuffle(pl.slice());
+    while(targets.length < OPT.qs*2) targets.push(pl[rand(pl.length)]);
+    queue=[[],[]];
+    for(let i=0;i<OPT.qs*2;i++) queue[i%2].push(makeQ(targets[i], pl));   /* dealt alternately — no shared questions */
     $('#multiSetup').hidden=true; $('#multiPlay').hidden=false;
     syncBar(); passScreen();
   }
@@ -916,134 +964,82 @@ const Multi = (() => {
     });
   }
   function passScreen(){
-    const st=$('#multiStage');
-    st.innerHTML=`<div class="pass-veil">
+    clearInterval(timer);
+    $('#multiStage').innerHTML=`<div class="pass-veil">
       <div class="big">${P[turn].av}</div>
       <h3>Pass to ${P[turn].name}!</h3>
-      <p class="hint-text">${roundLabel()}</p>
+      <p class="hint-text">Question ${idx[turn]+1} of ${OPT.qs} · ${OPT.secs} seconds — fast answers earn bonus coins!</p>
       <button class="pill-btn brick" id="multiReady">I'm ready! 👍</button>
     </div>`;
-    $('#multiReady').addEventListener('click', playTurn);
+    $('#multiReady').addEventListener('click', playQ);
   }
-  function roundLabel(){
-    if(mode==='speedbuild') return 'You get 60 seconds to place as many elements as you can!';
-    if(mode==='mixrace') return 'Pick two elements that make a real compound. First to 4 discoveries wins!';
-    return `Question ${Math.floor(round/2)+1} of ${totalRounds/2}`;
-  }
-  function playTurn(){
-    if(mode==='duel') duelQ();
-    else if(mode==='quiz') quizQ();
-    else if(mode==='speedbuild') speedTurn();
-    else if(mode==='mixrace') raceTurn();
-  }
-  function nextTurn(){
-    round++;
-    if((mode==='duel'||mode==='quiz') && round>=totalRounds) return endGame();
-    if(mode==='mixrace' && (P[0].score>=4||P[1].score>=4||round>=totalRounds)) return endGame();
-    if(mode==='speedbuild' && round>=2) return endGame();
-    turn=1-turn; syncBar(); passScreen();
-  }
-  /* duel: detective-style */
-  function duelQ(){
-    const pool=FAMOUS.map(n=>byNum[n]);
-    const t=pool[rand(pool.length)];
-    const clues=[STATE_KID[t.state], CAT_KIDTEXT[t.cat], `I'm used for ${t.uses.split(',')[0].toLowerCase()}.`];
-    const choices=shuffle([t,...sample(pool.filter(e=>e.n!==t.n),3)]);
-    mcq(clues.map(c=>`🔍 ${c}`).join('<br>'), choices, c=>c.emoji+' '+c.name, c=>c.n===t.n);
-  }
-  /* quiz: atomic-style */
-  function quizQ(){
-    const pool=FAMOUS.map(n=>byNum[n]);
-    const t=pool[rand(pool.length)];
-    const kind=rand(2);
-    const choices=shuffle([t,...sample(pool.filter(e=>e.n!==t.n),3)]);
-    if(kind===0) mcq(`<b style="font-size:2rem">${t.n}</b><br>Which element has this atomic number?`, choices, c=>c.name, c=>c.n===t.n);
-    else mcq(`<b style="font-size:2rem">${t.sym}</b><br>Which element is this?`, choices, c=>c.name, c=>c.n===t.n);
-  }
-  function mcq(promptHtml, choices, labelFn, isCorrect){
+  function playQ(){
+    const q=queue[turn][idx[turn]];
+    locked=false;
     const st=$('#multiStage');
-    st.innerHTML=`<div class="clue-box brick" style="text-align:center">${promptHtml}</div><div class="choice-grid" id="mcqGrid"></div>`;
-    let done=false;
-    choices.forEach(c=>{
+    st.innerHTML=`
+      <div class="fo-timer"><div class="fo-bar"><i id="foBarFill"></i></div><b id="foSecs">${OPT.secs}s</b></div>
+      <div class="clue-box brick" style="text-align:center">${q.prompt}</div>
+      <div class="choice-grid" id="foGrid"></div>`;
+    q.choices.forEach(c=>{
       const b=document.createElement('button');
-      b.className='choice-btn'; b.textContent=labelFn(c);
-      b.addEventListener('click',()=>{
-        if(done) return; done=true;
-        if(isCorrect(c)){ b.classList.add('correct'); sfx.good(); P[turn].score++; confetti(50); }
-        else { b.classList.add('wrong'); sfx.bad(); }
-        syncBar();
-        setTimeout(nextTurn, 1000);
-      });
-      $('#mcqGrid').appendChild(b);
+      b.className='choice-btn'; b.textContent=q.label(c);
+      b.dataset.ok = c.n===q.el.n ? '1' : '';
+      b.addEventListener('click',()=>settle(c.n===q.el.n, b));
+      $('#foGrid').appendChild(b);
     });
-  }
-  /* speed build turn */
-  function speedTurn(){
-    const st=$('#multiStage');
-    st.innerHTML=`<p class="hint-text"><b id="sbTime">60s</b> — <span id="sbCard"></span></p>
-      <div class="ptable-wrap"><div class="ptable" id="sbTable"></div></div>`;
-    let q=shuffle(PQ_DATA.ELEMENTS.slice(0,36)), cur=q.shift(), t=60;
-    const show=()=>$('#sbCard').innerHTML=`Place: <b>${cur.name} (${cur.sym})</b>`;
-    show();
-    renderTable($('#sbTable'), { empty:true, onTap:(el,tile)=>{
-      if(el.n===cur.n){
-        tile.className='ptile placed cat-'+cur.cat;
-        tile.innerHTML=`<span class="ts">${cur.sym}</span>`;
-        tile.disabled=true; sfx.good(); P[turn].score++; syncBar();
-        cur=q.shift(); if(!cur){ clearInterval(tm); nextTurn(); return; } show();
-      } else { tile.classList.add('wrong'); setTimeout(()=>tile.classList.remove('wrong'),350); sfx.bad(); }
-    }});
-    const tm=setInterval(()=>{
-      t--; $('#sbTime').textContent=t+'s';
-      if(t<=10) sfx.tick();
-      if(t<=0){ clearInterval(tm); nextTurn(); }
+    timeLeft=OPT.secs;
+    const fill=$('#foBarFill');
+    fill.style.transition=`width ${OPT.secs}s linear`;
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{ fill.style.width='0%'; }));
+    timer=setInterval(()=>{
+      timeLeft--; $('#foSecs').textContent=Math.max(0,timeLeft)+'s';
+      if(timeLeft<=3 && timeLeft>0) sfx.tick();
+      if(timeLeft<=0) settle(false, null);
     },1000);
   }
-  /* mix race turn */
-  function raceTurn(){
-    const st=$('#multiStage');
-    st.innerHTML=`<p class="hint-text">Pick two elements that make a real compound!
-      <span id="racePicks" style="font-family:'Baloo 2'"></span></p>
-      <div style="text-align:center;margin-bottom:10px"><button class="pill-btn brick" id="raceMix" disabled>MIX! ⚗️</button></div>
-      <div class="ptable-wrap"><div class="ptable shelf" id="raceTable"></div></div>`;
-    let picks=[];
-    renderTable($('#raceTable'), { shelf:true, onTap:(el)=>{
-      sfx.pick();
-      if(picks.length>=2) picks=[];
-      picks.push(el);
-      $('#racePicks').textContent=' '+picks.map(p=>p.sym).join(' + ');
-      $('#raceMix').disabled=picks.length<2;
-      $$('#raceTable .ptile').forEach(t=>t.classList.toggle('selected', picks.some(p=>p.n==t.dataset.n)));
-    }});
-    $('#raceMix').addEventListener('click',()=>{
-      const key=[picks[0].sym,picks[1].sym].sort().join('-');
-      const c=COMP_BY_KEY[key];
-      if(c && !raceFound.includes(key)){
-        raceFound.push(key); P[turn].score++; syncBar();
-        sfx.good(); confetti(60);
-        toast(`${P[turn].av} ${P[turn].name} made ${c.name}! ${c.emoji}`);
-      } else if(c){ sfx.pop(); toast('Already discovered this round! Turn passes.'); }
-      else { sfx.bad(); toast('No reaction! Turn passes.'); }
-      setTimeout(nextTurn, 900);
-    });
+  function settle(correct, btn){
+    if(locked) return;
+    locked=true; clearInterval(timer);
+    if(correct){
+      const pts=10+timeLeft;
+      P[turn].score+=pts; sfx.good(); confetti(50);
+      btn.classList.add('correct');
+      toast(`⚡ +${pts} points! (10 + ${timeLeft} speed bonus)`);
+    } else {
+      if(btn) btn.classList.add('wrong');
+      sfx.bad();
+      $$('#foGrid .choice-btn').forEach(x=>{ if(x.dataset.ok) x.classList.add('correct'); });
+      if(!btn) toast("⏰ Time's up!");
+    }
+    syncBar();
+    setTimeout(next, correct?900:1500);
+  }
+  function next(){
+    idx[turn]++;
+    const done = i => idx[i]>=OPT.qs;
+    if(done(0)&&done(1)) return endGame();
+    turn = done(1-turn) ? turn : 1-turn;
+    syncBar(); passScreen();
   }
   function endGame(){
+    clearInterval(timer);
     const [a,b]=P;
-    const winner = a.score===b.score ? null : (a.score>b.score?a:b);
-    sfx.fanfare(); confetti(150);
-    award({coins:5, xp:5, quiet:true, why:'Read about '+el.name});
+    const tie=a.score===b.score;
+    const w = a.score>=b.score ? a : b;
+    confetti(160); sfx.fanfare();
+    award({coins:8, why:'Pass the Phone match'});
     $('#multiStage').innerHTML=`<div class="pass-veil">
-      <div class="big">${winner?winner.av+'🏆':'🤝'}</div>
-      <h3>${winner? winner.name+' wins!' : "It's a tie!"}</h3>
-      <p class="hint-text">${a.av} ${a.name}: <b>${a.score}</b> &nbsp;·&nbsp; ${b.av} ${b.name}: <b>${b.score}</b></p>
-      <button class="pill-btn brick" id="multiAgain">🔁 Play again</button>
+      <div class="big">${tie?'🤝':w.av}</div>
+      <h3>${tie?"It's a tie!":w.name+' wins!'}</h3>
+      <p class="hint-text">${a.av} ${a.name}: <b>${a.score}</b> · ${b.av} ${b.name}: <b>${b.score}</b><br>+8 🪙 for playing together!</p>
+      <button class="pill-btn brick" id="foAgain">🔁 Rematch</button>
+      <button class="pill-btn brick" id="foSetup">⚙️ Change settings</button>
     </div>`;
-    turn=-1; syncBar();
-    $('#multiAgain').addEventListener('click', enter);
+    $('#foAgain').addEventListener('click', begin);
+    $('#foSetup').addEventListener('click', enter);
   }
-  document.addEventListener('click', e=>{
-    const b=e.target.closest('[data-mm]'); if(b) begin(b.dataset.mm);
-  });
+  $('#faceoffStart').addEventListener('click', begin);
   return { enter };
 })();
 
