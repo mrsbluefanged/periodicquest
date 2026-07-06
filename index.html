@@ -204,13 +204,13 @@
 </section>
 
 <!-- ============ MULTIPLAYER ============ -->
-<section class="screen" id="screen-multi" aria-label="Play Together">
+<section class="screen" id="screen-multi" aria-label="Pass the Phone Face-Off">
   <div class="screen-head">
     <button class="back-btn brick" data-go="home" aria-label="Back to home">←</button>
-    <h2>🎮 Play Together</h2><span></span>
+    <h2>🔁 Pass the Phone</h2><span></span>
   </div>
   <div id="multiSetup">
-    <p class="hint-text">Pass-and-play — no internet needed! Set up your players:</p>
+    <p class="hint-text">Take turns answering — fastest and sharpest wins! No internet needed.</p>
     <div class="player-setup">
       <div class="player-card brick p1">
         <label for="p1name">Player 1</label>
@@ -223,12 +223,42 @@
         <div class="avatar-row" data-p="2"></div>
       </div>
     </div>
-    <h3 class="det-q">Pick a battle!</h3>
-    <div class="game-grid">
-      <button class="game-card brick gc-guess" data-mm="duel"><span class="gc-emoji">🕵️</span><span class="gc-name">Guess Battle</span><span class="gc-sub">5 mystery elements each — highest score wins</span></button>
-      <button class="game-card brick gc-build" data-mm="speedbuild"><span class="gc-emoji">🧩</span><span class="gc-name">Speed Build</span><span class="gc-sub">60 seconds each — who places more?</span></button>
-      <button class="game-card brick gc-atomic" data-mm="quiz"><span class="gc-emoji">🔢</span><span class="gc-name">Atomic Duel</span><span class="gc-sub">Take turns — 5 questions each</span></button>
-      <button class="game-card brick gc-mix" data-mm="mixrace"><span class="gc-emoji">🧪</span><span class="gc-name">Mix Lab Race</span><span class="gc-sub">First to 4 discoveries wins!</span></button>
+
+    <h3 class="setup-q">What's the quiz about?</h3>
+    <div class="opt-row" role="radiogroup" aria-label="Question type" data-opt="qtype">
+      <button class="opt-btn brick" data-v="num" aria-checked="false"><b>🔢 Numbers</b><small>Atomic numbers</small></button>
+      <button class="opt-btn brick" data-v="sym" aria-checked="false"><b>🔣 Symbols</b><small>H, He, Li…</small></button>
+      <button class="opt-btn brick" data-v="clue" aria-checked="false"><b>🕵️ Clues</b><small>Who am I?</small></button>
+      <button class="opt-btn brick" data-v="mix" aria-checked="true"><b>🔀 Mix of all</b><small>A bit of everything</small></button>
+    </div>
+
+    <h3 class="setup-q">How tricky?</h3>
+    <div class="opt-row" role="radiogroup" aria-label="Difficulty" data-opt="diff">
+      <button class="opt-btn brick" data-v="easy" aria-checked="true"><b>🐣 Familiar</b><small>Easy</small></button>
+      <button class="opt-btn brick" data-v="med" aria-checked="false"><b>🚀 Famous</b><small>Medium</small></button>
+      <button class="opt-btn brick" data-v="hard" aria-checked="false"><b>🌶️ All 118</b><small>Hard</small></button>
+    </div>
+
+    <h3 class="setup-q">Questions per player</h3>
+    <div class="opt-row" role="radiogroup" aria-label="Questions per player" data-opt="qs">
+      <button class="opt-btn brick sm" data-v="3" aria-checked="false"><b>3</b></button>
+      <button class="opt-btn brick sm" data-v="5" aria-checked="true"><b>5</b></button>
+      <button class="opt-btn brick sm" data-v="10" aria-checked="false"><b>10</b></button>
+      <button class="opt-btn brick sm" data-v="15" aria-checked="false"><b>15</b></button>
+    </div>
+    <p class="hint-text">Each player answers their own questions — different ones, no spoilers!</p>
+
+    <h3 class="setup-q">Seconds per question</h3>
+    <div class="opt-row" role="radiogroup" aria-label="Seconds per question" data-opt="secs">
+      <button class="opt-btn brick sm" data-v="5" aria-checked="false"><b>5s ⚡</b></button>
+      <button class="opt-btn brick sm" data-v="10" aria-checked="false"><b>10s</b></button>
+      <button class="opt-btn brick sm" data-v="15" aria-checked="true"><b>15s</b></button>
+      <button class="opt-btn brick sm" data-v="20" aria-checked="false"><b>20s</b></button>
+      <button class="opt-btn brick sm" data-v="30" aria-checked="false"><b>30s</b></button>
+    </div>
+
+    <div style="text-align:center;margin:18px 0 6px">
+      <button class="mix-btn brick" id="faceoffStart">Let's play! 🎉</button>
     </div>
   </div>
   <div id="multiPlay" hidden>
